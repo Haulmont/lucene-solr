@@ -37,8 +37,8 @@ import org.apache.lucene.util.UnicodeUtil;
  */
 public class FieldTermStack {
   
-  private final String fieldName;
-  LinkedList<TermInfo> termList = new LinkedList<TermInfo>();
+  protected final String fieldName;
+  protected LinkedList<TermInfo> termList = new LinkedList<TermInfo>();
   
   //public static void main( String[] args ) throws Exception {
   //  Analyzer analyzer = new WhitespaceAnalyzer(Version.LUCENE_CURRENT);
@@ -74,60 +74,64 @@ public class FieldTermStack {
    */
   public FieldTermStack( IndexReader reader, int docId, String fieldName, final FieldQuery fieldQuery ) throws IOException {
     this.fieldName = fieldName;
-    
-    Set<String> termSet = fieldQuery.getTermSet( fieldName );
-    // just return to make null snippet if un-matched fieldName specified when fieldMatch == true
-    if( termSet == null ) return;
+    construct(reader, docId, fieldName, fieldQuery);
+  }
 
-    final Fields vectors = reader.getTermVectors(docId);
-    if (vectors == null) {
-      // null snippet
-      return;
-    }
+  public void construct(IndexReader reader, int docId, String fieldName, final FieldQuery fieldQuery ) throws IOException {
 
-    final Terms vector = vectors.terms(fieldName);
-    if (vector == null) {
-      // null snippet
-      return;
-    }
+      Set<String> termSet = fieldQuery.getTermSet( fieldName );
+      // just return to make null snippet if un-matched fieldName specified when fieldMatch == true
+      if( termSet == null ) return;
 
-    final CharsRef spare = new CharsRef();
-    final TermsEnum termsEnum = vector.iterator(null);
-    DocsAndPositionsEnum dpEnum = null;
-    BytesRef text;
-    
-    int numDocs = reader.maxDoc();
-    
-    while ((text = termsEnum.next()) != null) {
-      UnicodeUtil.UTF8toUTF16(text, spare);
-      final String term = spare.toString();
-      if (!termSet.contains(term)) {
-        continue;
-      }
-      dpEnum = termsEnum.docsAndPositions(null, dpEnum);
-      if (dpEnum == null) {
-        // null snippet
-        return;
+      final Fields vectors = reader.getTermVectors(docId);
+      if (vectors == null) {
+          // null snippet
+          return;
       }
 
-      dpEnum.nextDoc();
-      
-      // For weight look here: http://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/DefaultSimilarity.html
-      final float weight = ( float ) ( Math.log( numDocs / ( double ) ( reader.docFreq( new Term(fieldName, text) ) + 1 ) ) + 1.0 );
-
-      final int freq = dpEnum.freq();
-      
-      for(int i = 0;i < freq;i++) {
-        int pos = dpEnum.nextPosition();
-        if (dpEnum.startOffset() < 0) {
-          return; // no offsets, null snippet
-        }
-        termList.add( new TermInfo( term, dpEnum.startOffset(), dpEnum.endOffset(), pos, weight ) );
+      final Terms vector = vectors.terms(fieldName);
+      if (vector == null) {
+          // null snippet
+          return;
       }
-    }
-    
-    // sort by position
-    Collections.sort(termList);
+
+      final CharsRef spare = new CharsRef();
+      final TermsEnum termsEnum = vector.iterator(null);
+      DocsAndPositionsEnum dpEnum = null;
+      BytesRef text;
+
+      int numDocs = reader.maxDoc();
+
+      while ((text = termsEnum.next()) != null) {
+          UnicodeUtil.UTF8toUTF16(text, spare);
+          final String term = spare.toString();
+          if (!termSet.contains(term)) {
+              continue;
+          }
+          dpEnum = termsEnum.docsAndPositions(null, dpEnum);
+          if (dpEnum == null) {
+              // null snippet
+              return;
+          }
+
+          dpEnum.nextDoc();
+
+          // For weight look here: http://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/DefaultSimilarity.html
+          final float weight = ( float ) ( Math.log( numDocs / ( double ) ( reader.docFreq( new Term(fieldName, text) ) + 1 ) ) + 1.0 );
+
+          final int freq = dpEnum.freq();
+
+          for(int i = 0;i < freq;i++) {
+              int pos = dpEnum.nextPosition();
+              if (dpEnum.startOffset() < 0) {
+                  return; // no offsets, null snippet
+              }
+              termList.add( new TermInfo( term, dpEnum.startOffset(), dpEnum.endOffset(), pos, weight ) );
+          }
+      }
+
+      // sort by position
+      Collections.sort(termList);
   }
 
   /**
