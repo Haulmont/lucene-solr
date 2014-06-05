@@ -187,7 +187,7 @@ public class FastVectorHighlighter {
         preTags, postTags, encoder );
   }
   
-  private FieldFragList getFieldFragList( FragListBuilder fragListBuilder,
+  public FieldFragList getFieldFragList( FragListBuilder fragListBuilder,
       final FieldQuery fieldQuery, IndexReader reader, int docId,
       String fieldName, int fragCharSize ) throws IOException {
     FieldTermStack fieldTermStack = new FieldTermStack( reader, docId, fieldName, fieldQuery );
