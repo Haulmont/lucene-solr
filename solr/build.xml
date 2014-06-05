@@ -86,6 +86,15 @@
     <setproxy proxyhost="${proxy.host}" proxyport="${proxy.port}" proxyuser="${proxy.user}" proxypassword="${proxy.password}"/>
   </target>
 
+  <target name="jar-src" 
+           description="Create source jars for solr core, solrj, solr-test-framework, and all contribs">
+     <ant dir="core" target="jar-src" inheritAll="false"/>
+     <ant dir="solrj" target="jar-src" inheritAll="false"/>
+     <ant dir="test-framework" target="jar-src" inheritAll="false"/>
+     <contrib-crawl target="jar-src"/>
+   </target>
+
+
   <!--LUCENE-3286: Luke is incompatible with new XML QP location and target is not flexible
   when it comes to incompatible changes.  Update when Luke has updated.
   <target name="compile-xml-query-parser">

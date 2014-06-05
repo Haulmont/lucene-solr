@@ -80,6 +80,10 @@
     <ant dir="uima" />
   </target>
 
+  <target name="jar-src">
+    <forall-analyzers target="jar-src"/>
+  </target>
+
   <target name="default" depends="compile"/>
   <target name="compile" depends="common,icu,kuromoji,morfologik,phonetic,smartcn,stempel,uima" />
 

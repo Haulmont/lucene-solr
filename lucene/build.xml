@@ -94,6 +94,12 @@
       
 
   	</sequential>
+  </target>
+
+  <target name="jar-src" description="create source jars for all modules">
+    <ant dir="${common.dir}/core" target="jar-src" inheritAll="false" />
+    <ant dir="${common.dir}/test-framework" target="jar-src" inheritAll="false" />
+    <modules-crawl target="jar-src"/>
   </target>	
 
   <target name="backwards-test-warning" depends="check-backwards-params" if="backwards.ignoring.params">
