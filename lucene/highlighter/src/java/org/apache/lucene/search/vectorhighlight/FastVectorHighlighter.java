@@ -36,7 +36,7 @@ public class FastVectorHighlighter {
   private final boolean fieldMatch;
   private final FragListBuilder fragListBuilder;
   private final FragmentsBuilder fragmentsBuilder;
-  private int phraseLimit = Integer.MAX_VALUE;
+  protected int phraseLimit = Integer.MAX_VALUE;
 
   /**
    * the default constructor.
