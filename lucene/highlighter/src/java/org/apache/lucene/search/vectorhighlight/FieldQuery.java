@@ -322,7 +322,7 @@ public class FieldQuery {
     return set;
   }
   
-  Set<String> getTermSet( String field ){
+  public Set<String> getTermSet( String field ){
     return termSetMap.get( fieldMatch ? field : null );
   }
 

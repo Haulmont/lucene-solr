@@ -224,7 +224,7 @@ public class FastVectorHighlighter {
   /**
    * Build a FieldFragList for one field.
    */
-  private FieldFragList getFieldFragList( FragListBuilder fragListBuilder,
+  public FieldFragList getFieldFragList( FragListBuilder fragListBuilder,
       final FieldQuery fieldQuery, IndexReader reader, int docId,
       String matchedField, int fragCharSize ) throws IOException {
     FieldTermStack fieldTermStack = new FieldTermStack( reader, docId, matchedField, fieldQuery );
@@ -235,7 +235,7 @@ public class FastVectorHighlighter {
   /**
    * Build a FieldFragList for more than one field.
    */
-  private FieldFragList getFieldFragList( FragListBuilder fragListBuilder,
+  public FieldFragList getFieldFragList( FragListBuilder fragListBuilder,
       final FieldQuery fieldQuery, IndexReader reader, int docId,
       Set< String > matchedFields, int fragCharSize ) throws IOException {
     Iterator< String > matchedFieldsItr = matchedFields.iterator();

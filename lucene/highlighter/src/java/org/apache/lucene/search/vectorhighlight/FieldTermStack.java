@@ -16,37 +16,32 @@ package org.apache.lucene.search.vectorhighlight;
  * limitations under the License.
  */
 
+import org.apache.lucene.index.*;
+import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CharsRef;
+import org.apache.lucene.util.UnicodeUtil;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
 
-import org.apache.lucene.index.DocsAndPositionsEnum;
-import org.apache.lucene.index.Fields;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.CharsRef;
-import org.apache.lucene.util.UnicodeUtil;
-
 /**
  * <code>FieldTermStack</code> is a stack that keeps query terms in the specified field
  * of the document to be highlighted.
  */
 public class FieldTermStack {
-  
-  private final String fieldName;
-  LinkedList<TermInfo> termList = new LinkedList<>();
-  
+
+  protected final String fieldName;
+  protected LinkedList<TermInfo> termList = new LinkedList<>();
+
   //public static void main( String[] args ) throws Exception {
   //  Analyzer analyzer = new WhitespaceAnalyzer(Version.LUCENE_CURRENT);
   //  QueryParser parser = new QueryParser(Version.LUCENE_CURRENT,  "f", analyzer );
   //  Query query = parser.parse( "a x:b" );
   //  FieldQuery fieldQuery = new FieldQuery( query, true, false );
-    
+
   //  Directory dir = new RAMDirectory();
   //  IndexWriter writer = new IndexWriter(dir, new IndexWriterConfig(Version.LUCENE_CURRENT, analyzer));
   //  Document doc = new Document();
@@ -58,7 +53,7 @@ public class FieldTermStack {
   //  doc.add( new Field( "f", ft, "b a b a f" ) );
   //  writer.addDocument( doc );
   //  writer.close();
-    
+
   //  IndexReader reader = IndexReader.open(dir1);
   //  new FieldTermStack( reader, 0, "f", fieldQuery );
   //  reader.close();
@@ -66,7 +61,7 @@ public class FieldTermStack {
 
   /**
    * a constructor.
-   * 
+   *
    * @param reader IndexReader of the index
    * @param docId document id to be highlighted
    * @param fieldName field of the document to be highlighted
@@ -75,84 +70,87 @@ public class FieldTermStack {
    */
   public FieldTermStack( IndexReader reader, int docId, String fieldName, final FieldQuery fieldQuery ) throws IOException {
     this.fieldName = fieldName;
-    
-    Set<String> termSet = fieldQuery.getTermSet( fieldName );
-    // just return to make null snippet if un-matched fieldName specified when fieldMatch == true
-    if( termSet == null ) return;
+    construct(reader, docId, fieldName, fieldQuery);
+  }
 
-    final Fields vectors = reader.getTermVectors(docId);
-    if (vectors == null) {
-      // null snippet
-      return;
-    }
+  public void construct(IndexReader reader, int docId, String fieldName, final FieldQuery fieldQuery ) throws IOException {
+      Set<String> termSet = fieldQuery.getTermSet( fieldName );
+      // just return to make null snippet if un-matched fieldName specified when fieldMatch == true
+      if( termSet == null ) return;
 
-    final Terms vector = vectors.terms(fieldName);
-    if (vector == null) {
-      // null snippet
-      return;
-    }
-
-    final CharsRef spare = new CharsRef();
-    final TermsEnum termsEnum = vector.iterator(null);
-    DocsAndPositionsEnum dpEnum = null;
-    BytesRef text;
-    
-    int numDocs = reader.maxDoc();
-    
-    while ((text = termsEnum.next()) != null) {
-      UnicodeUtil.UTF8toUTF16(text, spare);
-      final String term = spare.toString();
-      if (!termSet.contains(term)) {
-        continue;
-      }
-      dpEnum = termsEnum.docsAndPositions(null, dpEnum);
-      if (dpEnum == null) {
-        // null snippet
-        return;
+      final Fields vectors = reader.getTermVectors(docId);
+      if (vectors == null) {
+          // null snippet
+          return;
       }
 
-      dpEnum.nextDoc();
-      
-      // For weight look here: http://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/DefaultSimilarity.html
-      final float weight = ( float ) ( Math.log( numDocs / ( double ) ( reader.docFreq( new Term(fieldName, text) ) + 1 ) ) + 1.0 );
-
-      final int freq = dpEnum.freq();
-      
-      for(int i = 0;i < freq;i++) {
-        int pos = dpEnum.nextPosition();
-        if (dpEnum.startOffset() < 0) {
-          return; // no offsets, null snippet
-        }
-        termList.add( new TermInfo( term, dpEnum.startOffset(), dpEnum.endOffset(), pos, weight ) );
+      final Terms vector = vectors.terms(fieldName);
+      if (vector == null) {
+          // null snippet
+          return;
       }
-    }
-    
-    // sort by position
-    Collections.sort(termList);
-    
-    // now look for dups at the same position, linking them together
-    int currentPos = -1;
-    TermInfo previous = null;
-    TermInfo first = null;
-    Iterator<TermInfo> iterator = termList.iterator();
-    while (iterator.hasNext()) {
-      TermInfo current = iterator.next();
-      if (current.position == currentPos) {
-        assert previous != null;
-        previous.setNext(current);
-        previous = current;
-        iterator.remove();
-      } else {
-        if (previous != null) {
+
+      final CharsRef spare = new CharsRef();
+      final TermsEnum termsEnum = vector.iterator(null);
+      DocsAndPositionsEnum dpEnum = null;
+      BytesRef text;
+
+      int numDocs = reader.maxDoc();
+
+      while ((text = termsEnum.next()) != null) {
+          UnicodeUtil.UTF8toUTF16(text, spare);
+          final String term = spare.toString();
+          if (!termSet.contains(term)) {
+              continue;
+          }
+          dpEnum = termsEnum.docsAndPositions(null, dpEnum);
+          if (dpEnum == null) {
+              // null snippet
+              return;
+          }
+
+          dpEnum.nextDoc();
+
+          // For weight look here: http://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/DefaultSimilarity.html
+          final float weight = ( float ) ( Math.log( numDocs / ( double ) ( reader.docFreq( new Term(fieldName, text) ) + 1 ) ) + 1.0 );
+
+          final int freq = dpEnum.freq();
+
+          for(int i = 0;i < freq;i++) {
+              int pos = dpEnum.nextPosition();
+              if (dpEnum.startOffset() < 0) {
+                  return; // no offsets, null snippet
+              }
+              termList.add( new TermInfo( term, dpEnum.startOffset(), dpEnum.endOffset(), pos, weight ) );
+          }
+      }
+
+      // sort by position
+      Collections.sort(termList);
+
+      // now look for dups at the same position, linking them together
+      int currentPos = -1;
+      TermInfo previous = null;
+      TermInfo first = null;
+      Iterator<TermInfo> iterator = termList.iterator();
+      while (iterator.hasNext()) {
+          TermInfo current = iterator.next();
+          if (current.position == currentPos) {
+              assert previous != null;
+              previous.setNext(current);
+              previous = current;
+              iterator.remove();
+          } else {
+              if (previous != null) {
+                  previous.setNext(first);
+              }
+              previous = first = current;
+              currentPos = current.position;
+          }
+      }
+      if (previous != null) {
           previous.setNext(first);
-        }
-        previous = first = current;
-        currentPos = current.position;
       }
-    }
-    if (previous != null) {
-      previous.setNext(first);
-    }
   }
 
   /**
@@ -178,13 +176,13 @@ public class FieldTermStack {
 
   /**
    * to know whether the stack is empty
-   * 
+   *
    * @return true if the stack is empty, false if not
    */
   public boolean isEmpty(){
     return termList == null || termList.size() == 0;
   }
-  
+
   /**
    * Single term with its position/offsets in the document and IDF weight.
    * It is Comparable but considers only position.
@@ -194,11 +192,11 @@ public class FieldTermStack {
     private final String text;
     private final int startOffset;
     private final int endOffset;
-    private final int position;    
+    private final int position;
 
     // IDF-weight of this term
     private final float weight;
-    
+
     // pointer to other TermInfo's at the same position.
     // this is a circular list, so with no syns, just points to itself
     private TermInfo next;
@@ -211,9 +209,9 @@ public class FieldTermStack {
       this.weight = weight;
       this.next = this;
     }
-    
+
     void setNext(TermInfo next) { this.next = next; }
-    /** 
+    /**
      * Returns the next TermInfo at this same position.
      * This is a circular list!
      */
@@ -223,7 +221,7 @@ public class FieldTermStack {
     public int getEndOffset(){ return endOffset; }
     public int getPosition(){ return position; }
     public float getWeight(){ return weight; }
-    
+
     @Override
     public String toString(){
       StringBuilder sb = new StringBuilder();
